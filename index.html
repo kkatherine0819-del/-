@@ -145,6 +145,23 @@ async function jbSet(obj){
   if(!res.ok) throw new Error("保存失败 (" + res.status + ")");
 }
 
+function genToken(){ return Math.random().toString(36).slice(2) + Date.now().toString(36); }
+function getMyBookings(){
+  try{ return JSON.parse(localStorage.getItem("myBookings")||"[]"); }catch(e){ return []; }
+}
+function saveMyBooking(tableId, ts, token){
+  const list = getMyBookings();
+  list.push({tableId, ts, token});
+  localStorage.setItem("myBookings", JSON.stringify(list));
+}
+function removeMyBooking(ts){
+  const list = getMyBookings().filter(b=>b.ts!==ts);
+  localStorage.setItem("myBookings", JSON.stringify(list));
+}
+function isMine(tableId, ts, token){
+  return getMyBookings().some(b=>b.tableId===tableId && b.ts===ts && b.token===token);
+}
+
 const ADMIN_CODE = "2026";
 let adminMode = false;
 let state = null;
@@ -274,11 +291,16 @@ function openBook(id){
   document.getElementById("bkSub").textContent = subTxt;
 
   const body = document.getElementById("bkBody");
-  const existingRows = t.bookings.map(b=>`<div class="bookrow">
-      <div class="top"><span>${b.name}(${b.seats}人)${b.student?" 🎓":""}</span>
-      ${adminMode?`<button class="btn small ghost" onclick="removeBooking('${id}','${b.ts}')">移除</button>`:""}</div>
+  const existingRows = t.bookings.map(b=>{
+    const mine = isMine(id, b.ts, b.token);
+    const cancelBtn = mine
+      ? `<button class="btn small ghost" onclick="cancelMyBooking('${id}','${b.ts}')">取消我的占座</button>`
+      : (adminMode ? `<button class="btn small ghost" onclick="removeBooking('${id}','${b.ts}','${b.name.replace(/'/g,"\\'")}')">移除(管理员)</button>` : "");
+    return `<div class="bookrow">
+      <div class="top"><span>${b.name}(${b.seats}人)${b.student?" 🎓":""}${mine?" · 你的占座":""}</span>${cancelBtn}</div>
       ${b.note?`<div class="note">备注:${b.note}</div>`:""}
-    </div>`).join("");
+    </div>`;
+  }).join("");
 
   if(remain<=0 && !adminMode){
     body.innerHTML = `<div class="msg err">该桌座位已订满</div>${existingRows}`;
@@ -322,8 +344,11 @@ async function submitBook(btn){
     if(seats<1 || seats>remain){ document.getElementById("bkMsg").innerHTML = `<div class="msg err">座位数不足,剩余 ${remain} 个</div>`; render(); openBook(currentTable); btn.disabled=false; btn.textContent="确认占座"; return; }
     if(student && hasStudent(t)){ document.getElementById("bkMsg").innerHTML = `<div class="msg err">本桌大学生名额已被占用,请取消勾选</div>`; render(); openBook(currentTable); btn.disabled=false; btn.textContent="确认占座"; return; }
 
-    t.bookings.push({name, note, student, seats, ts:Date.now().toString()});
+    const token = genToken();
+    const ts = Date.now().toString();
+    t.bookings.push({name, note, student, seats, ts, token});
     await saveState();
+    saveMyBooking(currentTable, ts, token);
     render();
     document.getElementById("bkMsg").innerHTML = `<div class="msg ok">占座成功!</div>`;
     setTimeout(()=>closeModal("bookMask"), 700);
@@ -334,10 +359,34 @@ async function submitBook(btn){
   }
 }
 
-async function removeBooking(id, ts){
-  const t = state.tables[id];
-  t.bookings = t.bookings.filter(b=>b.ts!==ts);
-  await saveState(); render(); openBook(id);
+async function cancelMyBooking(id, ts){
+  if(!confirm("确定要取消你在这一桌的占座吗?")) return;
+  try{
+    state = await jbGet();
+    const t = state.tables[id];
+    t.bookings = t.bookings.filter(b=>b.ts!==ts);
+    await saveState();
+    removeMyBooking(ts);
+    render();
+    openBook(id);
+  }catch(err){
+    alert("取消失败,请检查网络后重试");
+    console.error(err);
+  }
+}
+async function removeBooking(id, ts, name){
+  if(!confirm(`确定要取消「${name}」在 ${id} 桌的占座吗?`)) return;
+  try{
+    state = await jbGet();
+    const t = state.tables[id];
+    t.bookings = t.bookings.filter(b=>b.ts!==ts);
+    await saveState();
+    render();
+    openBook(id);
+  }catch(err){
+    alert("取消失败,请检查网络后重试");
+    console.error(err);
+  }
 }
 async function toggleReserve(id){
   state.tables[id].reserved = !state.tables[id].reserved;
