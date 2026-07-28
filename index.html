@@ -93,6 +93,7 @@
     <div class="stats" id="stats"></div>
     <div style="display:flex;gap:8px">
       <button class="btn ghost small" onclick="openList()">查看名单</button>
+      <button class="btn ghost small" onclick="exportCSV()">导出名单(CSV)</button>
       <button class="btn ghost small" onclick="toggleAdmin()" id="adminBtn">管理员模式</button>
     </div>
   </div>
@@ -404,6 +405,33 @@ function toggleAdmin(){
   const code = prompt("请输入管理员口令");
   if(code === ADMIN_CODE){ adminMode=true; document.getElementById("adminBtn").textContent="退出管理员模式"; render(); }
   else if(code!==null) alert("口令错误");
+}
+
+function csvEscape(s){
+  s = String(s==null?"":s);
+  if(/[",\n]/.test(s)) return `"${s.replace(/"/g,'""')}"`;
+  return s;
+}
+function exportCSV(){
+  const rows = [["区域","桌号","网名","人数","大学生","备注"]];
+  ZONES.forEach(z=>z.tables.forEach(td=>{
+    if(td.isStage) return;
+    const t = state.tables[td.id];
+    if(!t.bookings.length) return;
+    t.bookings.forEach(b=>{
+      rows.push([z.name, td.id, b.name, b.seats, b.student?"是":"", b.note||""]);
+    });
+  }));
+  const csv = "\uFEFF" + rows.map(r=>r.map(csvEscape).join(",")).join("\n");
+  const blob = new Blob([csv], {type:"text/csv;charset=utf-8;"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "占座名单_" + new Date().toISOString().slice(0,10) + ".csv";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 function openList(){
