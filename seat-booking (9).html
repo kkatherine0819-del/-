@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>粉丝聚会 · 近舞台区在线选座</title>
+<style>
+  :root{
+    --bg:#140f0c; --panel:#1d1611; --panel2:#241a14;
+    --chili:#e8432b; --chili-deep:#a82c1a; --gold:#d9a54a;
+    --green:#4caf6a; --blue:#4a8fd9; --grey:#5a5048;
+    --text:#f3e9df; --muted:#a8988a; --line:#332821;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:"PingFang SC","Microsoft YaHei","Noto Sans SC",system-ui,sans-serif;}
+  #app{max-width:1180px;margin:0 auto;padding:28px 20px 80px;}
+
+  .hero{position:relative;overflow:hidden;border-radius:18px;padding:34px 28px;
+    background:radial-gradient(120% 160% at 20% 0%, #3a1a12 0%, #1d1611 55%, #1d1611 100%);
+    border:1px solid var(--line); margin-bottom:22px;}
+  .hero h1{margin:0 0 6px;font-size:28px;letter-spacing:.5px;font-weight:800;
+    background:linear-gradient(90deg,#ffd7a8,var(--chili));-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .hero p{margin:0;color:var(--muted);font-size:14px}
+  .steam{position:absolute;right:-40px;top:-40px;width:260px;height:260px;opacity:.5;filter:blur(2px);
+    background:radial-gradient(circle,rgba(232,67,43,.35),transparent 60%);animation:sim 6s ease-in-out infinite;}
+  @keyframes sim{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-14px) scale(1.06)}}
+
+  .stats{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:18px}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 18px;min-width:110px}
+  .stat b{display:block;font-size:20px}
+  .stat span{font-size:12px;color:var(--muted)}
+  .legend{display:flex;gap:10px;flex-wrap:wrap;margin:6px 0 22px;font-size:12px;color:var(--muted)}
+  .dot{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:5px;vertical-align:middle}
+
+  .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:10px;flex-wrap:wrap}
+  button{cursor:pointer;font-family:inherit}
+  .btn{background:var(--chili);color:#fff;border:none;border-radius:9px;padding:9px 16px;font-size:13px;font-weight:600}
+  .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--text)}
+  .btn.small{padding:5px 10px;font-size:12px;border-radius:7px}
+
+  .zone{margin:22px 0}
+  .zone h2{font-size:14px;color:var(--gold);letter-spacing:1px;margin:0 0 3px;
+    border-left:3px solid var(--chili);padding-left:8px}
+  .zone .zsub{font-size:11px;color:var(--muted);margin:0 0 10px 11px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:10px}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:9px 8px;
+    text-align:center;transition:.15s;position:relative}
+  .card:hover{border-color:var(--chili);transform:translateY(-1px)}
+  .card .num{font-weight:700;font-size:14px}
+  .card .cap{font-size:11px;color:var(--muted);margin-top:2px}
+  .card .tags{position:absolute;top:4px;right:5px;font-size:10px}
+  .card.full{background:linear-gradient(160deg,#3a1610,#241a14);border-color:var(--chili-deep)}
+  .card.partial{background:linear-gradient(160deg,#2a2110,#241a14);border-color:var(--gold)}
+  .card.reserved{opacity:.55;filter:grayscale(.4)}
+  .card .names{font-size:10px;color:var(--muted);margin-top:3px;line-height:1.4;min-height:14px}
+  .card .stu{font-size:10px;margin-top:3px}
+  .card .stu.need{color:var(--blue)}
+  .card .stu.ok{color:var(--green)}
+  .stage-card{background:none;border:1px dashed var(--chili);display:flex;align-items:center;justify-content:center;
+    font-size:12px;color:var(--chili);writing-mode:vertical-rl;letter-spacing:3px;padding:9px 4px;cursor:default}
+  .stage-card:hover{transform:none;border-color:var(--chili)}
+
+  .mask{position:fixed;inset:0;background:rgba(10,7,5,.72);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
+  .mask.show{display:flex}
+  .modal{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:22px;width:100%;max-width:400px;max-height:86vh;overflow:auto}
+  .modal h3{margin:0 0 4px}
+  .modal .sub{color:var(--muted);font-size:12px;margin-bottom:14px}
+  .modal label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px}
+  .modal input,.modal select,.modal textarea{width:100%;padding:9px;border-radius:8px;border:1px solid var(--line);
+    background:var(--bg);color:var(--text);font-size:14px;font-family:inherit}
+  .checkline{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:13px;color:var(--text)}
+  .checkline input{width:auto}
+  .close{position:absolute;top:14px;right:16px;background:none;border:none;color:var(--muted);font-size:18px}
+  .bookrow{font-size:12px;padding:6px 0;border-bottom:1px dashed var(--line)}
+  .bookrow .top{display:flex;justify-content:space-between}
+  .bookrow .note{color:var(--muted);margin-top:2px}
+  .msg{font-size:12px;margin-top:8px}
+  .msg.err{color:var(--chili)} .msg.ok{color:var(--green)}
+  .loading{text-align:center;padding:60px 0;color:var(--muted)}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="hero">
+    <div class="steam"></div>
+    <h1>粉丝聚会 · 近舞台区在线选座</h1>
+    <p>先到先得 · 按人数占座拼桌 · 报满后自动进入第二波(安静区)选座 · 数据实时同步</p>
+  </div>
+
+  <div class="topbar">
+    <div class="stats" id="stats"></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn ghost small" onclick="openList()">查看名单</button>
+      <button class="btn ghost small" onclick="toggleAdmin()" id="adminBtn">管理员模式</button>
+    </div>
+  </div>
+  <div class="legend">
+    <span><i class="dot" style="background:#2c241d;border:1px solid var(--line)"></i>空闲</span>
+    <span><i class="dot" style="background:var(--gold)"></i>部分占座</span>
+    <span><i class="dot" style="background:var(--chili-deep)"></i>已订满</span>
+    <span><i class="dot" style="background:var(--grey)"></i>保留/待开放</span>
+    <span>🎓 大学生安置位(每桌保证一位)</span>
+  </div>
+
+  <div id="zones"><div class="loading">加载中...</div></div>
+</div>
+
+<div class="mask" id="bookMask">
+  <div class="modal">
+    <button class="close" onclick="closeModal('bookMask')">✕</button>
+    <h3 id="bkTitle"></h3>
+    <div class="sub" id="bkSub"></div>
+    <div id="bkBody"></div>
+  </div>
+</div>
+
+<div class="mask" id="listMask">
+  <div class="modal" style="max-width:560px">
+    <button class="close" onclick="closeModal('listMask')">✕</button>
+    <h3>报名名单</h3>
+    <div id="listBody" style="font-size:13px"></div>
+  </div>
+</div>
+
+<script>
+// ---- jsonbin.io 共享存储配置 ----
+const BIN_ID = "6a68731cda38895dfe9a8f55";
+const MASTER_KEY = "$2a$10$2VxDs9u9V3cC9dL3SWtdTuJNdwGZf1PgjnmQB9Y4CWWey2KkSBRxS";
+const JB_BASE = "https://api.jsonbin.io/v3/b/" + BIN_ID;
+
+async function jbGet(){
+  const res = await fetch(JB_BASE + "/latest", { headers: { "X-Master-Key": MASTER_KEY } });
+  if(!res.ok) throw new Error("读取失败 (" + res.status + ")");
+  const data = await res.json();
+  return data.record;
+}
+async function jbSet(obj){
+  const res = await fetch(JB_BASE, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", "X-Master-Key": MASTER_KEY },
+    body: JSON.stringify(obj)
+  });
+  if(!res.ok) throw new Error("保存失败 (" + res.status + ")");
+}
+
+const ADMIN_CODE = "2026";
+let adminMode = false;
+let state = null;
+
+const ZONES = [
+ {name:"大桌区(红色框 · 8-10人)", tables:[
+   {id:"411",cap:10,capMin:8,capMax:10},
+   {id:"410",cap:10,capMin:8,capMax:10},
+   {isStage:true},
+   {id:"409",cap:10,capMin:8,capMax:10},
+   {id:"408",cap:10,capMin:8,capMax:10},
+   {id:"406",cap:10,capMin:8,capMax:10},
+   {id:"405",cap:10,capMin:8,capMax:10}
+ ]},
+ {name:"中桌区(黄色框 · 6-8人)", tables:[
+   {id:"129",cap:8,capMin:6,capMax:8},{id:"130",cap:8,capMin:6,capMax:8},{id:"131",cap:8,capMin:6,capMax:8,tag:"s"},
+   {id:"132",cap:8,capMin:6,capMax:8},{id:"133",cap:8,capMin:6,capMax:8},{id:"135",cap:8,capMin:6,capMax:8},
+   {id:"115",cap:8,capMin:6,capMax:8,tag:"s"},{id:"116",cap:8,capMin:6,capMax:8},{id:"118",cap:8,capMin:6,capMax:8},
+   {id:"119",cap:8,capMin:6,capMax:8,tag:"vip"},{id:"120",cap:8,capMin:6,capMax:8},
+   {id:"113",cap:8,capMin:6,capMax:8},{id:"112",cap:8,capMin:6,capMax:8},{id:"111",cap:8,capMin:6,capMax:8},
+   {id:"110",cap:8,capMin:6,capMax:8,tag:"s"},{id:"109",cap:8,capMin:6,capMax:8},
+   {id:"102",cap:8,capMin:6,capMax:8},{id:"101",cap:8,capMin:6,capMax:8},{id:"100",cap:8,capMin:6,capMax:8},
+   {id:"099",cap:8,capMin:6,capMax:8,tag:"reserved"},{id:"098",cap:8,capMin:6,capMax:8,tag:"reserved"},
+   {id:"096",cap:8,capMin:6,capMax:8},{id:"095",cap:8,capMin:6,capMax:8},{id:"093",cap:8,capMin:6,capMax:8},
+   {id:"090",cap:8,capMin:6,capMax:8},{id:"091",cap:8,capMin:6,capMax:8,tag:"vip"},{id:"092",cap:8,capMin:6,capMax:8}
+ ]},
+ {name:"小桌区(其余 · 4-5人)", tables:[
+   {id:"203",cap:5,capMin:4,capMax:5,tag:"vip"},
+   {id:"128",cap:5,capMin:4,capMax:5},{id:"123",cap:5,capMin:4,capMax:5},{id:"122",cap:5,capMin:4,capMax:5,tag:"vip"},
+   {id:"126",cap:5,capMin:4,capMax:5},{id:"125",cap:5,capMin:4,capMax:5,tag:"vip"},{id:"121",cap:5,capMin:4,capMax:5},
+   {id:"080",cap:5,capMin:4,capMax:5},{id:"081",cap:5,capMin:4,capMax:5,tag:"vip"},
+   {id:"103",cap:5,capMin:4,capMax:5},{id:"105",cap:5,capMin:4,capMax:5},{id:"106",cap:5,capMin:4,capMax:5},{id:"108",cap:5,capMin:4,capMax:5},
+   {id:"089",cap:5,capMin:4,capMax:5},{id:"082",cap:5,capMin:4,capMax:5},{id:"088",cap:5,capMin:4,capMax:5},
+   {id:"083",cap:5,capMin:4,capMax:5},{id:"086",cap:5,capMin:4,capMax:5},{id:"085",cap:5,capMin:4,capMax:5}
+ ]},
+];
+
+function defaultState(){
+  const tables = {};
+  ZONES.forEach(z => z.tables.forEach(t => {
+    if(t.isStage) return;
+    tables[t.id] = {cap:t.cap, capMin:t.capMin, capMax:t.capMax, tag:t.tag||null, reserved:t.tag==="reserved", bookings:[]};
+  }));
+  return {tables};
+}
+
+async function loadState(){
+  const zonesEl = document.getElementById("zones");
+  try{
+    const record = await jbGet();
+    if(record && record.tables){
+      state = record;
+    } else {
+      state = defaultState();
+      await jbSet(state);
+    }
+  }catch(e){
+    console.error(e);
+    zonesEl.innerHTML = `<div class="loading">加载失败,请检查网络后刷新页面重试<br><span style="font-size:11px">(${e.message||e})</span></div>`;
+    return;
+  }
+  render();
+}
+
+async function saveState(){
+  await jbSet(state);
+}
+
+function bookedSeats(t){ return t.bookings.reduce((s,b)=>s+b.seats,0); }
+function hasStudent(t){ return t.bookings.some(b=>b.student); }
+
+function render(){
+  const zonesEl = document.getElementById("zones");
+  zonesEl.innerHTML = "";
+  let totalCap=0, totalBooked=0;
+
+  ZONES.forEach(z=>{
+    const sec = document.createElement("div"); sec.className="zone";
+    sec.innerHTML = `<h2>${z.name}</h2>`;
+    const grid = document.createElement("div"); grid.className="grid";
+    z.tables.forEach(td=>{
+      if(td.isStage){
+        const card = document.createElement("div");
+        card.className = "card stage-card";
+        card.textContent = "舞 台";
+        grid.appendChild(card);
+        return;
+      }
+      const t = state.tables[td.id];
+      const booked = bookedSeats(t);
+      totalCap += t.cap; totalBooked += booked;
+      const full = booked >= t.cap;
+      const partial = booked>0 && !full;
+      const card = document.createElement("div");
+      card.className = "card" + (t.reserved?" reserved":"") + (full?" full":"") + (partial?" partial":"");
+      const tagIcon = t.tag==="vip"?"👑":t.tag==="s"?"⭐":t.tag==="reserved"?"🔒":"";
+      const names = t.bookings.slice(0,2).map(b=>b.name).join("、") + (t.bookings.length>2?` 等${t.bookings.length}组`:"");
+      const stu = hasStudent(t) ? `<div class="stu ok">🎓已有</div>` : `<div class="stu need">🎓缺</div>`;
+      card.innerHTML = `<div class="tags">${tagIcon}</div>
+        <div class="num">${td.id}</div>
+        <div class="cap">${booked}/${t.cap}人</div>
+        ${stu}
+        <div class="names">${names||"&nbsp;"}</div>`;
+      card.onclick = ()=>openBook(td.id);
+      grid.appendChild(card);
+    });
+    sec.appendChild(grid);
+    zonesEl.appendChild(sec);
+  });
+
+  document.getElementById("stats").innerHTML = `
+    <div class="stat"><b>${totalCap}</b><span>总座位(近舞台区)</span></div>
+    <div class="stat"><b>${totalBooked}</b><span>已占座</span></div>
+    <div class="stat"><b>${totalCap-totalBooked}</b><span>剩余</span></div>`;
+}
+
+let currentTable = null;
+
+function openBook(id){
+  currentTable = id;
+  const t = state.tables[id];
+  const booked = bookedSeats(t);
+  const remain = t.cap - booked;
+  document.getElementById("bkTitle").textContent = `桌号 ${id}`;
+  let subTxt = `本桌容量 ${t.capMin}-${t.capMax} 人 · 当前开放 ${t.cap} 人 · 剩余 ${remain} 人`;
+  if(t.reserved && !adminMode) subTxt += " · 该桌暂未开放,请联系工作人员";
+  document.getElementById("bkSub").textContent = subTxt;
+
+  const body = document.getElementById("bkBody");
+  const existingRows = t.bookings.map(b=>`<div class="bookrow">
+      <div class="top"><span>${b.name}(${b.seats}人)${b.student?" 🎓":""}</span>
+      ${adminMode?`<button class="btn small ghost" onclick="removeBooking('${id}','${b.ts}')">移除</button>`:""}</div>
+      ${b.note?`<div class="note">备注:${b.note}</div>`:""}
+    </div>`).join("");
+
+  if(remain<=0 && !adminMode){
+    body.innerHTML = `<div class="msg err">该桌座位已订满</div>${existingRows}`;
+  } else if(t.reserved && !adminMode){
+    body.innerHTML = `<div class="msg err">该桌暂未对外开放</div>`;
+  } else {
+    const studentDone = hasStudent(t);
+    body.innerHTML = `
+      <label>网名</label><input id="bkName" placeholder="怎么称呼你">
+      <label>备注(想找什么样的搭子,可不填)</label>
+      <textarea id="bkNote" rows="2" placeholder="例如:想和同担一桌"></textarea>
+      <label>占座人数</label><input id="bkSeats" type="number" min="1" max="${remain}" value="1">
+      <div class="checkline">
+        <input type="checkbox" id="bkStudent" ${studentDone?"disabled":""}>
+        <label style="margin:0" for="bkStudent">${studentDone?"本桌大学生名额已有人占位":"我是大学生,占用本桌大学生名额"}</label>
+      </div>
+      <button class="btn" style="width:100%;margin-top:14px" onclick="submitBook(this)">确认占座</button>
+      <div id="bkMsg"></div>
+      <div style="margin-top:14px">${existingRows}</div>
+      ${adminMode?`<button class="btn ghost small" style="width:100%;margin-top:10px" onclick="toggleReserve('${id}')">${t.reserved?'开放此桌':'设为保留'}</button>
+      <label>修改开放容量(区间 ${t.capMin}-${t.capMax})</label><input id="bkCapEdit" type="number" value="${t.cap}">
+      <button class="btn ghost small" style="width:100%;margin-top:6px" onclick="editCap('${id}')">保存容量</button>`:""}
+    `;
+  }
+  document.getElementById("bookMask").classList.add("show");
+}
+
+async function submitBook(btn){
+  const name = document.getElementById("bkName").value.trim();
+  const note = document.getElementById("bkNote").value.trim();
+  const student = document.getElementById("bkStudent").checked;
+  if(!name){ document.getElementById("bkMsg").innerHTML = `<div class="msg err">请填写网名</div>`; return; }
+
+  btn.disabled = true; btn.textContent = "提交中...";
+  try{
+    state = await jbGet();
+    const t = state.tables[currentTable];
+    const booked = bookedSeats(t);
+    const remain = t.cap - booked;
+    let seats = parseInt(document.getElementById("bkSeats").value||"1",10);
+    if(seats<1 || seats>remain){ document.getElementById("bkMsg").innerHTML = `<div class="msg err">座位数不足,剩余 ${remain} 个</div>`; render(); openBook(currentTable); btn.disabled=false; btn.textContent="确认占座"; return; }
+    if(student && hasStudent(t)){ document.getElementById("bkMsg").innerHTML = `<div class="msg err">本桌大学生名额已被占用,请取消勾选</div>`; render(); openBook(currentTable); btn.disabled=false; btn.textContent="确认占座"; return; }
+
+    t.bookings.push({name, note, student, seats, ts:Date.now().toString()});
+    await saveState();
+    render();
+    document.getElementById("bkMsg").innerHTML = `<div class="msg ok">占座成功!</div>`;
+    setTimeout(()=>closeModal("bookMask"), 700);
+  }catch(err){
+    console.error(err);
+    document.getElementById("bkMsg").innerHTML = `<div class="msg err">提交失败,请检查网络后重试(${err.message||err})</div>`;
+    btn.disabled = false; btn.textContent = "确认占座";
+  }
+}
+
+async function removeBooking(id, ts){
+  const t = state.tables[id];
+  t.bookings = t.bookings.filter(b=>b.ts!==ts);
+  await saveState(); render(); openBook(id);
+}
+async function toggleReserve(id){
+  state.tables[id].reserved = !state.tables[id].reserved;
+  await saveState(); render(); openBook(id);
+}
+async function editCap(id){
+  const v = parseInt(document.getElementById("bkCapEdit").value||"0",10);
+  if(v>0){ state.tables[id].cap = v; await saveState(); render(); openBook(id); }
+}
+
+function closeModal(id){ document.getElementById(id).classList.remove("show"); }
+
+function toggleAdmin(){
+  if(adminMode){ adminMode=false; document.getElementById("adminBtn").textContent="管理员模式"; render(); return; }
+  const code = prompt("请输入管理员口令");
+  if(code === ADMIN_CODE){ adminMode=true; document.getElementById("adminBtn").textContent="退出管理员模式"; render(); }
+  else if(code!==null) alert("口令错误");
+}
+
+function openList(){
+  let rows = [];
+  ZONES.forEach(z=>z.tables.forEach(td=>{
+    if(td.isStage) return;
+    const t = state.tables[td.id];
+    t.bookings.forEach(b=> rows.push(`<div class="bookrow">
+      <div class="top"><span>桌${td.id} · ${b.name}(${b.seats}人)${b.student?" 🎓":""}</span></div>
+      ${b.note?`<div class="note">${b.note}</div>`:""}
+    </div>`));
+  }));
+  document.getElementById("listBody").innerHTML = rows.length ? rows.join("") : "<div class='sub'>暂无报名</div>";
+  document.getElementById("listMask").classList.add("show");
+}
+
+loadState();
+</script>
+</body>
+</html>
